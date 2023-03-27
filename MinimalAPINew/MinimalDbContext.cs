@@ -10,10 +10,5 @@ namespace MinimalAPINew
         }
 
         public DbSet<Book> Books { get; set; }
-
-        internal Task<Book> FindAsync(int id)
-        {
-            throw new NotImplementedException();
-        }
     }
 }
