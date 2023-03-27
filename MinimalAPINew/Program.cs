@@ -1,10 +1,14 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
+using MinimalAPINew;
 using MinimalAPINew.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddServices();
 
 var app = builder.Build();
 
@@ -17,59 +21,58 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 
-var books = new List<Book>
-{
-    new () {Id=1,Author="Harper Lee",Title="Bülbülü Öldürmek" },
-    new () {Id=2,Author="George Orwell",Title="1984" },
-    new () {Id=3,Author="John Steinbeck",Title="Fareler ve Ýnsanlar" },
-    new () {Id=4,Author="Franz Kafka",Title="Dönüþüm" },
-    new () {Id=5,Author="Ray Bradbury",Title="Fahrenheit 451" },
+app.MapGet("/books", async (MinimalDbContext context) =>  await context.Books.ToListAsync());
     
-};
+  
 
-app.MapGet("/books", () => { return books; });
+app.MapGet("/books/{id}", async (MinimalDbContext context, int id) =>
 
-app.MapGet("/books/{id}", (int id) =>
+   await context.Books.FindAsync(id) is Book book ? Results.Ok(book) : Results.NotFound("Book is not found"));
+
+
+
+
+
+app.MapPost("/books", async (MinimalDbContext context, Book book) =>
 {
-   
-   var book = books.Find(b => b.Id == id);
+    context.Books.Add(book);
+    await context.SaveChangesAsync();   
+    return Results.Ok(await context.Books.ToListAsync());    
 
+});
+
+app.MapPut("/books/{id}", async (MinimalDbContext context, Book updateBook, int id) =>
+{
+
+    var book = context.Books.Find(id);
     if (book is null)
-        return Results.NotFound("Book is not found");
-   return Results.Ok(book);
-    
-});
-
-
-app.MapPost("/books", (Book book) =>
-{
-    books.Add(book);
-    return Results.Ok(book);
-});
-
-app.MapPut("/books/{id}", (Book book,int id) =>
-{
-    var model = books.Find(b=>b.Id == id);
-
-    if (model is null)
+    {
         return Results.NotFound("book is not found");
+    }
 
-    model.Author = book.Author;
-    model.Title = book.Title;
-    model.Id = book.Id;
-    return Results.Ok(book);
+    book.Id = updateBook.Id;
+    book.Title = updateBook.Title;
+    book.Author = updateBook.Author;
+
+    await context.SaveChangesAsync();
+
+    return Results.Ok(await context.Books.ToListAsync());
+
+
 
 });
 
 
-app.MapDelete("/books/{id}", (int id) =>
+app.MapDelete("/books/{id}", async (MinimalDbContext context, int id) =>
 {
-    var book = books.Find(b=> b.Id == id); 
-    if(book is null)
-        return Results.NotFound("book is not found");  
-    books.Remove(book);
-    return Results.Ok(books);    
-});
+    var book = await context.Books.FindAsync(id);
+    if (book is null) return Results.NotFound("book is not found");
+
+    context.Books.Remove(book);
+    await context.SaveChangesAsync();
+    return Results.Ok(await context.Books.ToListAsync());
+}); 
+
 
 
 
